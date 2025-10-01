@@ -2,47 +2,57 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS region for EC2')
-        string(name: 'EC2_NAME', defaultValue: 'MyServer', description: 'Name tag for EC2 instance')
-        string(name: 'INSTANCE_TYPE', defaultValue: 't2.micro', description: 'EC2 instance type')
+        booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
     }
 
     environment {
         AWS_DEFAULT_REGION = "${params.AWS_REGION}"
         // Inject AWS credentials from Jenkins credentials store
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')                   // Replace with your Jenkins credential ID
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')          // Replace with your Jenkins credential ID
+        AWS_ACCESS_KEY_ID = aws-creds('aws-access-key-id')                   // Replace with your Jenkins credential ID
+        AWS_SECRET_ACCESS_KEY = aws-creds('aws-secret-access-key')          // Replace with your Jenkins credential ID
     }
 
+    agent  any
     stages {
-        stage('Checkout Code') {
+        stage('checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-username/terraform-ec2-demo.git'
+                 script{
+                        dir("terraform")
+                        {
+                            git "https://github.com/yeshwanthlm/Terraform-Jenkins.git"
+                        }
+                    }
+                }
+            }
+
+        stage('Plan') {
+            steps {
+                sh 'pwd;cd terraform/ ; terraform init'
+                sh "pwd;cd terraform/ ; terraform plan -out tfplan"
+                sh 'pwd;cd terraform/ ; terraform show -no-color tfplan > tfplan.txt'
             }
         }
+        stage('Approval') {
+           when {
+               not {
+                   equals expected: true, actual: params.autoApprove
+               }
+           }
 
-        stage('Terraform Init') {
-            steps {
-                sh 'terraform init'
-            }
-        }
+           steps {
+               script {
+                    def plan = readFile 'terraform/tfplan.txt'
+                    input message: "Do you want to apply the plan?",
+                    parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
+               }
+           }
+       }
 
-        stage('Terraform Plan') {
+        stage('Apply') {
             steps {
-                sh """
-                    terraform plan \
-                      -var 'aws_region=${params.AWS_REGION}' \
-                      -var 'server_name=${params.EC2_NAME}' \
-                      -var 'instance_type=${params.INSTANCE_TYPE}' \
-                      -out=tfplan
-                """
-            }
-        }
-
-        stage('Terraform Apply') {
-            steps {
-                sh 'terraform apply -auto-approve tfplan'
+                sh "pwd;cd terraform/ ; terraform apply -input=false tfplan"
             }
         }
     }
-}
+
+  }
