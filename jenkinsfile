@@ -9,7 +9,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = "${params.AWS_REGION}"
         PATH = "/usr/bin:${env.PATH}"
-       }
+    }
 
     stages {
         stage('Checkout') {
@@ -20,12 +20,13 @@ pipeline {
             }
         }
 
-           stage('Plan') {
+        stage('Plan') {
             steps {
                 sh 'pwd;cd terraform/ ; terraform init'
                 sh "pwd;cd terraform/ ; terraform plan -out tfplan"
                 sh 'pwd;cd terraform/ ; terraform show -no-color tfplan > tfplan.txt'
             }
+        }  // <-- Closing brace for Plan stage
 
         stage('Approval') {
             when {
