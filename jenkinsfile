@@ -1,62 +1,33 @@
 pipeline {
-    agent {
-        docker {
-            image 'hashicorp/terraform:1.6.4'
-            args '-v $HOME/.aws:/root/.aws'  // optional for AWS credentials
-        }
-    }
-
-    parameters {
-        booleanParam(
-            name: 'autoApprove', 
-            defaultValue: false, 
-            description: 'Automatically run apply after generating plan?'
-        )
-    }
-
+    agent { label 'terraform-agent' }  // Use the label of your node/agent
     environment {
-        AWS_ACCESS_KEY_ID     = credentials('aws-creds')    // Secret Text ID
-        AWS_SECRET_ACCESS_KEY = credentials('aws-creds')    // Secret Text ID
+        AWS_ACCESS_KEY_ID     = credentials('aws-creds')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-creds')
         AWS_DEFAULT_REGION    = 'us-east-1'
     }
-
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    dir("terraform") {
-                        git branch: 'main', url: 'https://github.com/chaitramk23/terraform-jenkins.git'
-                    }
+                dir('terraform') {
+                    git branch: 'main', url: 'https://github.com/chaitramk23/terraform-jenkins.git'
                 }
             }
         }
-
-        stage('Plan') {
+        stage('Terraform Init') {
             steps {
                 dir('terraform') {
-                    sh 'pwd; terraform init'
-                    sh 'terraform plan -out=tfplan'
-                    sh 'terraform show -no-color tfplan > tfplan.txt'
+                    sh 'terraform init'
                 }
             }
         }
-
-        stage('Approval') {
-            when {
-                not {
-                    equals expected: true, actual: params.autoApprove
-                }
-            }
+        stage('Terraform Plan') {
             steps {
-                script {
-                    def plan = readFile 'terraform/tfplan.txt'
-                    input message: "Do you want to apply the plan?",
-                          parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
+                dir('terraform') {
+                    sh 'terraform plan -out=tfplan'
                 }
             }
         }
-
-        stage('Apply') {
+        stage('Terraform Apply') {
             steps {
                 dir('terraform') {
                     sh 'terraform apply -input=false tfplan'
