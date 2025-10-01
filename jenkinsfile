@@ -3,56 +3,58 @@ pipeline {
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
+        string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region')
     }
 
     environment {
         AWS_DEFAULT_REGION = "${params.AWS_REGION}"
-        // Inject AWS credentials from Jenkins credentials store
-        AWS_ACCESS_KEY_ID = aws-creds('aws-access-key-id')                   // Replace with your Jenkins credential ID
-        AWS_SECRET_ACCESS_KEY = aws-creds('aws-secret-access-key')          // Replace with your Jenkins credential ID
     }
 
-    agent  any
     stages {
-        stage('checkout') {
+        stage('Checkout') {
             steps {
-                 script{
-                        dir("terraform")
-                        {
-                            git "https://github.com/chaitramk23/terraform-jenkins.git"
-                        }
+                dir("terraform") {
+                    git "https://github.com/chaitramk23/terraform-jenkins.git"
+                }
+            }
+        }
+
+        stage('Terraform Init & Plan') {
+            steps {
+                dir("terraform") {
+                    sh 'terraform init'
+                    sh 'terraform plan -out tfplan'
+                    sh 'terraform show -no-color tfplan > tfplan.txt'
+                }
+            }
+        }
+
+        stage('Approval') {
+            when {
+                not {
+                    equals expected: true, actual: params.autoApprove
+                }
+            }
+            steps {
+                script {
+                    def plan = readFile('terraform/tfplan.txt')
+                    input message: "Do you want to apply the plan?",
+                          parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-credentials-id'  // Replace with your Jenkins AWS credential ID
+                ]]) {
+                    dir("terraform") {
+                        sh 'terraform apply -input=false tfplan'
                     }
                 }
             }
-
-        stage('Plan') {
-            steps {
-                sh 'pwd;cd terraform/ ; terraform init'
-                sh "pwd;cd terraform/ ; terraform plan -out tfplan"
-                sh 'pwd;cd terraform/ ; terraform show -no-color tfplan > tfplan.txt'
-            }
-        }
-        stage('Approval') {
-           when {
-               not {
-                   equals expected: true, actual: params.autoApprove
-               }
-           }
-
-           steps {
-               script {
-                    def plan = readFile 'terraform/tfplan.txt'
-                    input message: "Do you want to apply the plan?",
-                    parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
-               }
-           }
-       }
-
-        stage('Apply') {
-            steps {
-                sh "pwd;cd terraform/ ; terraform apply -input=false tfplan"
-            }
         }
     }
-
-  }
+}
