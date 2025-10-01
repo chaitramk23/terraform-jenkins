@@ -5,13 +5,13 @@ pipeline {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
         string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS Region')
     }
-    environment {
-    AWS_DEFAULT_REGION = "${params.AWS_REGION}"
-    TERRAFORM_HOME = tool name: 'Terraform_1.6.0', type: 'com.datapipe.jenkins.plugins.terraform.TerraformTool'
-    PATH = "${env.TERRAFORM_HOME}:${env.PATH}"
-   }
 
-   stages {
+    environment {
+        AWS_DEFAULT_REGION = "${params.AWS_REGION}"
+        PATH = "/usr/bin:${env.PATH}"
+    }
+
+    stages {
         stage('Checkout') {
             steps {
                 dir("terraform") {
@@ -20,17 +20,17 @@ pipeline {
             }
         }
 
-       stage('Plan') {
-    steps {
-            cd terraform
-            pwd
-           sh '/usr/bin/terraform init'
-           sh '/usr/bin/terraform plan -out=tfplan'
-           sh '/usr/bin/terraform show -no-color tfplan > tfplan.txt'
-      }
-  }  
-
-
+        stage('Plan') {
+            steps {
+                sh '''
+                    cd terraform
+                    pwd
+                    /usr/bin/terraform init
+                    /usr/bin/terraform plan -out=tfplan
+                    /usr/bin/terraform show -no-color tfplan > tfplan.txt
+                '''
+            }
+        }
 
         stage('Approval') {
             when {
@@ -51,7 +51,7 @@ pipeline {
             steps {
                 withAWS(credentials: 'aws-credentials-id', region: "${params.AWS_REGION}") {
                     dir("terraform") {
-                        sh 'terraform apply -input=false tfplan'
+                        sh '/usr/bin/terraform apply -input=false tfplan'
                     }
                 }
             }
