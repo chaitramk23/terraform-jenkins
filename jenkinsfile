@@ -8,6 +8,7 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = "${params.AWS_REGION}"
+        PATH = "/usr/local/bin:${env.PATH}"
        }
 
     stages {
