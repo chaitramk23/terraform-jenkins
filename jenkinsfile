@@ -22,15 +22,15 @@ pipeline {
 
        stage('Plan') {
     steps {
-        sh '''
             cd terraform
             pwd
-            terraform init
-            terraform plan -out=tfplan
-            terraform show -no-color tfplan > tfplan.txt
-        '''
-    }
-}  
+           sh '/usr/bin/terraform init'
+           sh '/usr/bin/terraform plan -out=tfplan'
+           sh '/usr/bin/terraform show -no-color tfplan > tfplan.txt'
+      }
+  }  
+
+
 
         stage('Approval') {
             when {
