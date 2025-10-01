@@ -8,10 +8,7 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = "${params.AWS_REGION}"
-        // Use the Terraform plugin installation
-        TERRAFORM_HOME = tool name: 'Terraform_1.6.0', type: 'com.datapipe.jenkins.plugins.terraform.TerraformTool'
-        PATH = "${env.TERRAFORM_HOME}:${env.PATH}"
-    }
+       }
 
     stages {
         stage('Checkout') {
