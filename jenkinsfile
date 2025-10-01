@@ -12,7 +12,6 @@ pipeline {
         TERRAFORM_HOME = tool name: 'Terraform_1.6.0', type: 'com.datapipe.jenkins.plugins.terraform.TerraformTool'
         PATH = "${env.TERRAFORM_HOME}:${env.PATH}"
     }
-    }
 
     stages {
         stage('Checkout') {
