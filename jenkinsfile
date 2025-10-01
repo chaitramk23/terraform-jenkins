@@ -1,10 +1,9 @@
 pipeline {
     agent any
 
-tools {
-    terraform 'terraform' // Name you provided in Jenkins Global Tool Configuration
-}
-
+    tools {
+        terraform 'terraform' // Name you provided in Jenkins Global Tool Configuration
+    }
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
@@ -20,7 +19,6 @@ tools {
             steps {
                 dir("terraform") {
                     git branch: 'main', url: 'https://github.com/chaitramk23/terraform-jenkins.git'
-
                 }
             }
         }
@@ -29,7 +27,7 @@ tools {
             steps {
                 dir("terraform") {
                     sh 'terraform init'
-                    sh 'terraform plan -out tfplan'
+                    sh 'terraform plan -out=tfplan'
                     sh 'terraform show -no-color tfplan > tfplan.txt'
                 }
             }
@@ -52,10 +50,7 @@ tools {
 
         stage('Terraform Apply') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-credentials-id'  // Replace with your Jenkins AWS credential ID
-                ]]) {
+                withAWS(credentials: 'aws-credentials-id', region: "${params.AWS_REGION}") {
                     dir("terraform") {
                         sh 'terraform apply -input=false tfplan'
                     }
