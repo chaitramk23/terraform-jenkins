@@ -2,40 +2,49 @@ pipeline {
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
-        string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS Region to deploy resources')
-        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'staging', 'prod'], description: 'Select the environment')
     } 
 
     environment {
         AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-        AWS_DEFAULT_REGION    = "${params.AWS_REGION}"
     }
 
     agent any
 
     stages {
-        stage('checkout') {
+        stage('Checkout') {
             steps {
                 script {
                     dir("terraform") {
-                        git url: 'https://github.com/chaitramk23/terraform-Jenkins.git', branch: 'main'
+                        git "https://github.com/yeshwanthlm/Terraform-Jenkins.git"
                     }
                 }
             }
         }
 
-        stage('Plan') {
+        stage('Terraform Init') {
             steps {
                 sh "cd terraform/ && terraform init"
-                sh "cd terraform/ && terraform plan -out=tfplan -var 'region=${params.AWS_REGION}' -var 'env=${params.ENVIRONMENT}'"
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                sh "cd terraform/ && terraform plan -out=tfplan"
+            }
+        }
+
+        stage('Terraform Show') {
+            steps {
                 sh "cd terraform/ && terraform show -no-color tfplan > tfplan.txt"
             }
         }
 
         stage('Approval') {
             when {
-                expression { return !params.autoApprove }
+                not {
+                    equals expected: true, actual: params.autoApprove
+                }
             }
             steps {
                 script {
@@ -46,7 +55,7 @@ pipeline {
             }
         }
 
-        stage('Apply') {
+        stage('Terraform Apply') {
             steps {
                 sh "cd terraform/ && terraform apply -input=false tfplan"
             }
