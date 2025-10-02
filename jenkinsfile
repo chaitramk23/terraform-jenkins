@@ -2,59 +2,66 @@ pipeline {
 
     parameters {
         booleanParam(name: 'autoApprove', defaultValue: false, description: 'Automatically run apply after generating plan?')
-        string(name: 'AWS_REGION', defaultValue: 'ap-south-1', description: 'AWS Region to deploy resources')
-        choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'staging', 'prod'], description: 'Select the environment')
-        string(name: 'INSTANCE_TYPE', defaultValue: 't2.micro', description: 'EC2 instance type to launch')
+        choice(name: 'region', choices: ['ap-south-1', 'us-east-1', 'us-west-2'], description: 'Select AWS Region')
+        choice(name: 'env', choices: ['dev', 'qa', 'staging', 'prod'], description: 'Select Environment')
+        choice(name: 'instance_type', choices: ['t2.micro', 't3.micro', 't2.small'], description: 'Select EC2 Instance Type')
     } 
 
     environment {
         AWS_ACCESS_KEY_ID     = credentials('AWS_ACCESS_KEY_ID')
         AWS_SECRET_ACCESS_KEY = credentials('AWS_SECRET_ACCESS_KEY')
-        AWS_DEFAULT_REGION    = "${params.AWS_REGION}"
     }
 
-    agent  any
+    agent any
 
     stages {
-        stage('checkout') {
+        stage('Checkout') {
             steps {
-                 script{
-                        dir("terraform")
-                        {
-                            git "https://github.com/yeshwanthlm/Terraform-Jenkins.git"
-                        }
+                script {
+                    dir("terraform") {
+                        git "https://github.com/yeshwanthlm/Terraform-Jenkins.git"
                     }
                 }
             }
+        }
 
-        stage('Plan') {
+        stage('Terraform Init') {
             steps {
-                sh 'pwd;cd terraform/ ; terraform init'
-                sh "pwd;cd terraform/ ; terraform plan -out tfplan -var 'region=${params.AWS_REGION}' -var 'env=${params.ENVIRONMENT}' -var 'instance_type=${params.INSTANCE_TYPE}'"
-                sh 'pwd;cd terraform/ ; terraform show -no-color tfplan > tfplan.txt'
+                sh "cd terraform/ && terraform init"
             }
         }
-        stage('Approval') {
-           when {
-               not {
-                   equals expected: true, actual: params.autoApprove
-               }
-           }
 
-           steps {
-               script {
+        stage('Terraform Plan') {
+            steps {
+                sh "cd terraform/ && terraform plan -out=tfplan -var region=${params.region} -var env=${params.env} -var instance_type=${params.instance_type}"
+            }
+        }
+
+        stage('Terraform Show') {
+            steps {
+                sh "cd terraform/ && terraform show -no-color tfplan > tfplan.txt"
+            }
+        }
+
+        stage('Approval') {
+            when {
+                not {
+                    equals expected: true, actual: params.autoApprove
+                }
+            }
+            steps {
+                script {
                     def plan = readFile 'terraform/tfplan.txt'
                     input message: "Do you want to apply the plan?",
-                    parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
-               }
-           }
-       }
+                          parameters: [text(name: 'Plan', description: 'Please review the plan', defaultValue: plan)]
+                }
+            }
+        }
 
-        stage('Apply') {
+        stage('Terraform Apply') {
             steps {
-                sh "pwd;cd terraform/ ; terraform apply -input=false tfplan"
+                sh "cd terraform/ && terraform apply -input=false tfplan"
             }
         }
     }
-
 }
