@@ -19,7 +19,7 @@ pipeline {
             steps {
                 script {
                     dir("terraform") {
-                        git "https://github.com/yeshwanthlm/Terraform-Jenkins.git"
+                        git "https://github.com/chaitramk23/Terraform-Jenkins.git"
                     }
                 }
             }
@@ -27,27 +27,33 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                sh "cd terraform/ && terraform init"
+                dir('terraform') {
+                    sh 'terraform init'
+                }
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                sh "cd terraform/ && terraform plan -out=tfplan -var region=${params.region} -var env=${params.env} -var instance_type=${params.instance_type}"
+                dir('terraform') {
+                    sh "terraform plan -out=tfplan -var region=${params.region} -var env=${params.env} -var instance_type=${params.instance_type}"
+                }
             }
         }
 
         stage('Terraform Show') {
             steps {
-                sh "cd terraform/ && terraform show -no-color tfplan > tfplan.txt"
+                dir('terraform') {
+                    sh "terraform show -no-color tfplan > tfplan.txt"
+                    // Optional: print plan in console for easier review
+                    sh "cat tfplan.txt"
+                }
             }
         }
 
         stage('Approval') {
             when {
-                not {
-                    equals expected: true, actual: params.autoApprove
-                }
+                expression { return !params.autoApprove } // fixed manual approval condition
             }
             steps {
                 script {
@@ -60,7 +66,9 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                sh "cd terraform/ && terraform apply -input=false tfplan"
+                dir('terraform') {
+                    sh "terraform apply -input=false tfplan"
+                }
             }
         }
     }
