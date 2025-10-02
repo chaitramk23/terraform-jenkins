@@ -1,11 +1,14 @@
 variable "region" {
-  type = string
+  description = "AWS region"
+  type        = string
 }
 
 variable "env" {
-  type = string
+  description = "Deployment environment"
+  type        = string
 }
 
 variable "instance_type" {
-  type = string
+  description = "EC2 instance type"
+  type        = string
 }
