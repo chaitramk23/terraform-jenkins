@@ -1,13 +1,8 @@
 provider "aws" {
-  region = var.region
+  region = "ap-south-1"
 }
 
 resource "aws_instance" "example" {
-  ami           = "ami-0c55b159cbfafe1f0"  # replace with correct AMI
-  instance_type = var.instance_type
-
-  tags = {
-    Name = "${var.env}-server"
-    Env  = var.env
-  }
+  ami           = "ami-0c02fb55956c7d316"
+  instance_type = "t2.micro"
 }
